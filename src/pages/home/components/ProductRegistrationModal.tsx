@@ -21,7 +21,7 @@ import { createNewProduct, initialProductState } from '@/helpers/product';
 import { useAppDispatch } from '@/store/hooks';
 import { addProduct } from '@/store/product/productsActions';
 import { uploadImage } from '@/utils/imageUpload';
-import { ChangeEvent, useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 
 interface ProductRegistrationModalProps {
   isOpen: boolean;
@@ -33,35 +33,35 @@ export const ProductRegistrationModal: React.FC<
   ProductRegistrationModalProps
 > = ({ isOpen, onClose, onProductAdded }) => {
   const dispatch = useAppDispatch();
-  const [product, setProduct] = useState<NewProductDTO>(initialProductState);
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ): void => {
-    const { name, value } = e.target;
-    setProduct((prev) => ({ ...prev, [name]: value }));
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = useForm<NewProductDTO>({
+    defaultValues: initialProductState,
+  });
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      setProduct((prev) => ({ ...prev, image: file }));
-    }
-  };
+  const watchCategory = watch('category.id');
+  const watchImage = watch('image') as FileList | null;
 
-  const handleSubmit = async (): Promise<void> => {
+  const onSubmit: SubmitHandler<NewProductDTO> = async (
+    data
+  ): Promise<void> => {
     try {
-      if (!product.image) {
+      const imageFiles = watchImage;
+      if (!imageFiles || imageFiles.length === 0) {
         throw new Error('이미지를 선택해야 합니다.');
       }
 
-      const imageUrl = await uploadImage(product.image as File);
+      const imageUrl = await uploadImage(imageFiles[0]);
       if (!imageUrl) {
         throw new Error('이미지 업로드에 실패했습니다.');
       }
 
-      const newProduct = createNewProduct(product, imageUrl);
+      const newProduct = createNewProduct(data, imageUrl);
       await dispatch(addProduct(newProduct));
       onClose();
       onProductAdded();
@@ -70,44 +70,53 @@ export const ProductRegistrationModal: React.FC<
     }
   };
 
-  const handleCategoryChange = (value: string): void => {
-    setProduct((prev) => ({
-      ...prev,
-      category: { ...prev.category, id: value },
-    }));
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>상품 등록</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <form className="grid gap-4 py-4" onSubmit={handleSubmit(onSubmit)}>
           <Input
-            name="title"
+            {...register('title', {
+              required: '상품명은 필수입니다.',
+            })}
+            type="text"
             placeholder="상품명"
-            onChange={handleChange}
-            value={product.title || ''}
           />
+          {errors.title && (
+            <p className="text-red-500">{errors.title.message}</p>
+          )}
+
           <Input
-            name="price"
+            {...register('price', {
+              required: '가격은 필수입니다.',
+              valueAsNumber: true,
+            })}
             type="number"
             placeholder="가격"
-            onChange={handleChange}
-            value={product.price || ''}
           />
+          {errors.price && (
+            <p className="text-red-500">{errors.price.message}</p>
+          )}
+
           <Textarea
-            name="description"
+            {...register('description', {
+              required: '상품 설명은 필수입니다.',
+            })}
             className="resize-none"
             placeholder="상품 설명"
-            onChange={handleChange}
-            value={product.description || ''}
           />
+          {errors.description && (
+            <p className="text-red-500">{errors.description.message}</p>
+          )}
+
           <Select
-            name="categoryId"
-            onValueChange={handleCategoryChange}
-            value={product.category.id || ''}
+            {...register('category.id', {
+              required: '카테고리 선택은 필수입니다.',
+            })}
+            onValueChange={(value) => setValue('category.id', value)}
+            value={watchCategory || ''}
           >
             <SelectTrigger>
               <SelectValue placeholder="카테고리 선택" />
@@ -122,15 +131,26 @@ export const ProductRegistrationModal: React.FC<
                 ))}
             </SelectContent>
           </Select>
+          {errors.category?.id && (
+            <p className="text-red-500">{errors.category.id.message}</p>
+          )}
+
           <Input
+            {...register('image', {
+              required: '이미지는 필수입니다.',
+            })}
             className="cursor-pointer"
             type="file"
             accept="image/*"
-            onChange={handleImageChange}
           />
-        </div>
+          {watchImage && watchImage.length > 0 && (
+            <p className="text-gray-500">선택된 파일: {watchImage[0].name}</p>
+          )}
+        </form>
         <DialogFooter>
-          <Button onClick={handleSubmit}>등록</Button>
+          <Button type="submit" onClick={handleSubmit(onSubmit)}>
+            등록
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
