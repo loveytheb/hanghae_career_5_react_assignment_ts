@@ -13,13 +13,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLogin: false,
   user: null,
 
-  setIsLogin: (isLogin) => set({ isLogin }),
+  setIsLogin: (isLogin) => {
+    set({ isLogin });
+    if (isLogin) {
+      localStorage.setItem('isLogin', 'true');
+    } else {
+      localStorage.removeItem('isLogin');
+      localStorage.removeItem('user');
+    }
+  },
 
-  setUser: (user) =>
+  setUser: (user) => {
     set({
       user,
       isLogin: true,
-    }),
+    });
+    localStorage.setItem('user', JSON.stringify(user));
+  },
 
   logout: () =>
     set({

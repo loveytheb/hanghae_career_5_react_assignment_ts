@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { pageRoutes } from '@/apiRoutes';
 import { NavigationBar } from './NavigationBar';
@@ -22,7 +22,19 @@ export const Layout: React.FC<LayoutProps> = ({
   containerClassName = '',
   authStatus = authStatusType.COMMON,
 }) => {
-  const { isLogin } = useAuthStore();
+  const { isLogin, setIsLogin, setUser } = useAuthStore();
+
+  useEffect(() => {
+    const loginStatus = localStorage.getItem('isLogin');
+    const userData = localStorage.getItem('user');
+
+    if (loginStatus === 'true') {
+      setIsLogin(true);
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    }
+  }, [setIsLogin, setUser]);
 
   if (authStatus === authStatusType.NEED_LOGIN && !isLogin) {
     return <Navigate to={pageRoutes.login} />;
