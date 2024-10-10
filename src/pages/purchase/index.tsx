@@ -13,17 +13,11 @@ import { Layout, authStatusType } from '@/pages/common/components/Layout';
 import { ItemList } from '@/pages/purchase/components/ItemList';
 import { Payment } from '@/pages/purchase/components/Payment';
 import { ShippingInformationForm } from '@/pages/purchase/components/ShippingInformationForm';
-import { selectUser } from '@/store/auth/authSelectors';
-import { selectCart } from '@/store/cart/cartSelectors';
-import { resetCart } from '@/store/cart/cartSlice';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import {
-  purchaseFailure,
-  purchaseStart,
-  purchaseSuccess,
-} from '@/store/purchase/purchaseSlice';
+import usePurchaseStore from '@/store/purchase/usePurchaseStore';
+import { useAuthStore } from '@/store/auth/useAuthStore';
+import { useCartStore } from '@/store/cart/useCartStore';
 
-export interface FormData {
+interface FormData {
   name: string;
   address: string;
   phone: string;
@@ -31,16 +25,16 @@ export interface FormData {
   payment: string;
 }
 
-export interface FormErrors {
+interface FormErrors {
   phone: string;
 }
 
 export const Purchase: React.FC = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const user = useAppSelector(selectUser);
-  const cart = useAppSelector(selectCart);
-  const { isLoading } = useAppSelector((state) => state.purchase);
+  const { user } = useAuthStore();
+  const { cart, resetCart } = useCartStore();
+  const { isLoading, startPurchase, successPurchase, failurePurchase } =
+    usePurchaseStore();
 
   const [formData, setFormData] = useState<FormData>({
     name: user?.displayName ?? '',
@@ -84,7 +78,7 @@ export const Purchase: React.FC = () => {
     e.preventDefault();
     if (!isFormValid || !user) return;
 
-    dispatch(purchaseStart());
+    startPurchase();
     const purchaseData = {
       ...formData,
       totalAmount: 0,
@@ -94,21 +88,21 @@ export const Purchase: React.FC = () => {
 
     try {
       await makePurchase(purchaseData, user.uid, cart);
-      dispatch(purchaseSuccess());
+      successPurchase();
       if (user) {
-        dispatch(resetCart(user.uid));
+        resetCart(user.uid);
       }
       console.log('구매 성공!');
       navigate(pageRoutes.main);
     } catch (err) {
       if (err instanceof Error) {
-        dispatch(purchaseFailure(err.message));
+        failurePurchase(err.message);
         console.error(
           '잠시 문제가 발생했습니다! 다시 시도해 주세요.',
           err.message
         );
       } else {
-        dispatch(purchaseFailure('알 수 없는 오류가 발생했습니다.'));
+        failurePurchase('알 수 없는 오류가 발생했습니다.');
         console.error('잠시 문제가 발생했습니다! 다시 시도해 주세요.');
       }
     }

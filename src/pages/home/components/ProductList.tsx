@@ -2,20 +2,7 @@ import { IProduct } from '@/api/dtos/productDTO';
 import { pageRoutes } from '@/apiRoutes';
 import { Button } from '@/components/ui/button';
 import { PRODUCT_PAGE_SIZE } from '@/constants';
-import { extractIndexLink, isFirebaseIndexError } from '@/helpers/error';
 import { useModal } from '@/hooks/useModal';
-import { FirebaseIndexErrorModal } from '@/pages/error/components/FirebaseIndexErrorModal';
-import { selectIsLogin, selectUser } from '@/store/auth/authSelectors';
-import { addCartItem } from '@/store/cart/cartSlice';
-import { selectFilter } from '@/store/filter/filterSelectors';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { loadProducts } from '@/store/product/productsActions';
-import {
-  selectHasNextPage,
-  selectIsLoading,
-  selectProducts,
-  selectTotalCount,
-} from '@/store/product/productsSelectors';
 import { CartItem } from '@/types/cartType';
 import { ChevronDown, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -24,6 +11,13 @@ import { ProductCardSkeleton } from '../skeletons/ProductCardSkeleton';
 import { EmptyProduct } from './EmptyProduct';
 import { ProductCard } from './ProductCard';
 import { ProductRegistrationModal } from './ProductRegistrationModal';
+import { useAuthStore } from '@/store/auth/useAuthStore';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts } from '@/api/product';
+import { useProductStore } from '@/store/product/useProductStore';
+import { useCartStore } from '@/store/cart/useCartStore';
+import { extractIndexLink, isFirebaseIndexError } from '@/helpers/error';
+import { FirebaseIndexErrorModal } from '@/pages/error/components/FirebaseIndexErrorModal';
 
 interface ProductListProps {
   pageSize?: number;
@@ -33,39 +27,66 @@ export const ProductList: React.FC<ProductListProps> = ({
   pageSize = PRODUCT_PAGE_SIZE,
 }) => {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const { isOpen, openModal, closeModal } = useModal();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isIndexErrorModalOpen, setIsIndexErrorModalOpen] =
     useState<boolean>(false);
   const [indexLink, setIndexLink] = useState<string | null>(null);
 
-  const products = useAppSelector(selectProducts);
-  const hasNextPage = useAppSelector(selectHasNextPage);
-  const isLoading = useAppSelector(selectIsLoading);
-  const filter = useAppSelector(selectFilter);
-  const user = useAppSelector(selectUser);
-  const isLogin = useAppSelector(selectIsLogin);
-  const totalCount = useAppSelector(selectTotalCount);
+  const { isLogin, user } = useAuthStore();
+  const {
+    items: products,
+    hasNextPage,
+    totalCount,
+    filter,
+  } = useProductStore();
+  const { addCartItem } = useCartStore();
+
+  const { data, isLoading, refetch } = useQuery<{
+    products: IProduct[];
+    hasNextPage: boolean;
+    totalCount: number;
+  }>({
+    queryKey: ['products', currentPage, filter],
+    queryFn: () => fetchProducts(filter, pageSize, currentPage),
+    enabled: Boolean(
+      filter.categoryId ||
+        filter.title ||
+        filter.minPrice !== undefined ||
+        filter.maxPrice !== undefined
+    ),
+  });
+
+  useEffect(() => {
+    if (data) {
+      useProductStore
+        .getState()
+        .loadProducts(
+          data.products,
+          data.hasNextPage,
+          data.totalCount,
+          currentPage === 1
+        );
+    }
+  }, [data, currentPage]);
 
   const loadProductsData = async (isInitial = false): Promise<void> => {
     try {
       const page = isInitial ? 1 : currentPage + 1;
-      await dispatch(
-        loadProducts({
-          filter,
-          pageSize,
-          page,
-          isInitial,
-        })
-      ).unwrap();
+      const response = await fetchProducts(filter, pageSize, page);
+      useProductStore.getState().loadProducts(
+        response.products,
+        response.hasNextPage,
+        response.totalCount,
+        isInitial
+      );
       if (!isInitial) {
         setCurrentPage(page);
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-
+  
       if (isFirebaseIndexError(errorMessage)) {
         const link = extractIndexLink(errorMessage);
         setIndexLink(link);
@@ -74,17 +95,21 @@ export const ProductList: React.FC<ProductListProps> = ({
       throw error;
     }
   };
+  
 
   useEffect(() => {
-    setCurrentPage(1);
-    loadProductsData(true);
-  }, [filter]);
+    if (filter) {
+      console.log('필터 업데이트:', filter);
+      setCurrentPage(1);
+      refetch();
+      loadProductsData(true);
+    }
+  }, [filter, refetch]);
 
   const handleCartAction = (product: IProduct): void => {
     if (isLogin && user) {
       const cartItem: CartItem = { ...product, count: 1 };
-      dispatch(addCartItem({ item: cartItem, userId: user.uid, count: 1 }));
-      console.log(`${product.title} 상품이 \n장바구니에 담겼습니다.`);
+      addCartItem(cartItem, user.uid, 1);
     } else {
       navigate(pageRoutes.login);
     }
@@ -93,7 +118,7 @@ export const ProductList: React.FC<ProductListProps> = ({
   const handlePurchaseAction = (product: IProduct): void => {
     if (isLogin && user) {
       const cartItem: CartItem = { ...product, count: 1 };
-      dispatch(addCartItem({ item: cartItem, userId: user.uid, count: 1 }));
+      addCartItem(cartItem, user.uid, 1);
       navigate(pageRoutes.cart);
     } else {
       navigate(pageRoutes.login);
@@ -102,17 +127,8 @@ export const ProductList: React.FC<ProductListProps> = ({
 
   const handleProductAdded = (): void => {
     setCurrentPage(1);
-    loadProductsData(true);
+    refetch();
   };
-
-  const firstProductImage = products[0]?.image;
-
-  useEffect(() => {
-    if (firstProductImage) {
-      const img = new Image();
-      img.src = firstProductImage;
-    }
-  }, [firstProductImage]);
 
   return (
     <>
@@ -136,9 +152,9 @@ export const ProductList: React.FC<ProductListProps> = ({
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product, index) => (
+              {products.map((product) => (
                 <ProductCard
-                  key={`${product.id}_${index}`}
+                  key={product.id}
                   product={product}
                   onClickAddCartButton={(e: React.MouseEvent) => {
                     e.stopPropagation();
@@ -153,7 +169,10 @@ export const ProductList: React.FC<ProductListProps> = ({
             </div>
             {hasNextPage && currentPage * pageSize < totalCount && (
               <div className="flex justify-center mt-4">
-                <Button onClick={() => loadProductsData()} disabled={isLoading}>
+                <Button
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  disabled={isLoading}
+                >
                   {isLoading ? '로딩 중...' : '더 보기'}
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
