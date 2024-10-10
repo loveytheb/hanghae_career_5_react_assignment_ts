@@ -18,7 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { ALL_CATEGORY_ID, categories } from '@/constants';
 import { createNewProduct, initialProductState } from '@/helpers/product';
-import { useAppDispatch } from '@/store/hooks';
+import { useAddProduct } from '@/hooks/useAddProduct';
 import { addProduct } from '@/store/product/productsActions';
 import { uploadImage } from '@/utils/imageUpload';
 import { useForm, SubmitHandler } from 'react-hook-form';
@@ -32,7 +32,7 @@ interface ProductRegistrationModalProps {
 export const ProductRegistrationModal: React.FC<
   ProductRegistrationModalProps
 > = ({ isOpen, onClose, onProductAdded }) => {
-  const dispatch = useAppDispatch();
+  const productMutation = useAddProduct();
 
   const {
     register,
@@ -62,7 +62,7 @@ export const ProductRegistrationModal: React.FC<
       }
 
       const newProduct = createNewProduct(data, imageUrl);
-      await dispatch(addProduct(newProduct));
+      productMutation.mutate(newProduct);
       onClose();
       onProductAdded();
     } catch (error) {

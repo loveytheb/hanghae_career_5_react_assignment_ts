@@ -1,20 +1,13 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { Suspense } from 'react';
-
+import { Suspense, useEffect } from 'react';
 import { ApiErrorBoundary } from '@/pages/common/components/ApiErrorBoundary';
-import {
-  setCategoryId,
-  setMaxPrice,
-  setMinPrice,
-  setTitle,
-} from '@/store/filter/filterActions';
-import { selectFilter } from '@/store/filter/filterSelectors';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { debounce } from '@/utils/common';
 import { CategoryRadioGroup } from './CategoryRadioGroup';
 import { PriceRange } from './PriceRange';
 import { SearchBar } from './SearchBar';
+import { useFilterStore } from '@/store/filter/useFilterStore';
+import { useProductStore } from '@/store/product/useProductStore';
 
 interface ProductFilterBoxProps {
   children: React.ReactNode;
@@ -27,28 +20,40 @@ const ProductFilterBox: React.FC<ProductFilterBoxProps> = ({ children }) => (
 );
 
 export const ProductFilter = () => {
-  const dispatch = useAppDispatch();
-  const filterState = useAppSelector(selectFilter);
+  const {
+    setTitle,
+    setMinPrice,
+    setMaxPrice,
+    setCategoryId,
+    categoryId,
+    title,
+    minPrice,
+    maxPrice,
+  } = useFilterStore();
+  const { updateFilter } = useProductStore();
+
+  useEffect(() => {
+    updateFilter({
+      title,
+      minPrice: minPrice === -1 ? undefined : minPrice,
+      maxPrice: maxPrice === -1 ? undefined : maxPrice,
+      categoryId,
+    });
+  }, [title, minPrice, maxPrice, categoryId, updateFilter]);
 
   const handleChangeInput = debounce(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      dispatch(setTitle(e.target.value));
+      setTitle(e.target.value);
     },
     300
   );
 
-  const handlePriceChange = (
-    actionCreator: typeof setMinPrice | typeof setMaxPrice
-  ) =>
+  const handlePriceChange = (action: (value: number) => void) =>
     debounce((e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
-      if (value === '') {
-        dispatch(actionCreator(-1));
-      } else {
-        const numericValue = Math.max(0, parseInt(value, 10));
-        if (!isNaN(numericValue)) {
-          dispatch(actionCreator(numericValue));
-        }
+      const numericValue = value === '' ? -1 : Math.max(0, parseInt(value, 10));
+      if (!isNaN(numericValue)) {
+        action(numericValue);
       }
     }, 300);
 
@@ -56,8 +61,8 @@ export const ProductFilter = () => {
   const handleMaxPrice = handlePriceChange(setMaxPrice);
 
   const handleChangeCategory = (value: string) => {
-    if (value !== undefined) {
-      dispatch(setCategoryId(value));
+    if (value) {
+      setCategoryId(value);
     } else {
       console.error('카테고리가 설정되지 않았습니다.');
     }
@@ -72,7 +77,7 @@ export const ProductFilter = () => {
         <ApiErrorBoundary>
           <Suspense fallback={<Loader2 className="h-24 w-24 animate-spin" />}>
             <CategoryRadioGroup
-              categoryId={filterState.categoryId}
+              categoryId={categoryId}
               onChangeCategory={handleChangeCategory}
             />
           </Suspense>
