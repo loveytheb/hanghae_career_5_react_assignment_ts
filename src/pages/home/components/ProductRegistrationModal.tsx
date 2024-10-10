@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ALL_CATEGORY_ID, categories } from '@/constants';
 import { createNewProduct, initialProductState } from '@/helpers/product';
 import { useAddProduct } from '@/hooks/useAddProduct';
-import { addProduct } from '@/store/product/productsActions';
+import { useToastStore } from '@/store/toast/useToastStore';
 import { uploadImage } from '@/utils/imageUpload';
 import { useForm, SubmitHandler } from 'react-hook-form';
 
@@ -63,6 +63,7 @@ export const ProductRegistrationModal: React.FC<
 
       const newProduct = createNewProduct(data, imageUrl);
       productMutation.mutate(newProduct);
+      useToastStore.getState().addToast('상품 등록에 성공했습니다.');
       onClose();
       onProductAdded();
     } catch (error) {

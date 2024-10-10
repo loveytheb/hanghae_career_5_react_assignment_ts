@@ -16,6 +16,7 @@ import { ShippingInformationForm } from '@/pages/purchase/components/ShippingInf
 import usePurchaseStore from '@/store/purchase/usePurchaseStore';
 import { useAuthStore } from '@/store/auth/useAuthStore';
 import { useCartStore } from '@/store/cart/useCartStore';
+import { useToastStore } from '@/store/toast/useToastStore';
 
 interface FormData {
   name: string;
@@ -93,6 +94,7 @@ export const Purchase: React.FC = () => {
         resetCart(user.uid);
       }
       console.log('구매 성공!');
+      useToastStore.getState().addToast('구매가 완료되었습니다.');
       navigate(pageRoutes.main);
     } catch (err) {
       if (err instanceof Error) {

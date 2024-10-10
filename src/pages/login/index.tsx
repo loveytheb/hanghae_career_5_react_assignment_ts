@@ -12,6 +12,7 @@ import { EMAIL_PATTERN } from '@/constants';
 import { auth } from '@/firebase';
 import { Layout, authStatusType } from '@/pages/common/components/Layout';
 import { useAuthStore } from '@/store/auth/useAuthStore';
+import { useToastStore } from '@/store/toast/useToastStore';
 
 interface FormErrors {
   email?: string;
@@ -73,6 +74,7 @@ export const LoginPage = () => {
         }
 
         navigate(pageRoutes.main);
+        useToastStore.getState().addToast('로그인에 성공했습니다.');
       } catch (error) {
         console.error(
           '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.',
