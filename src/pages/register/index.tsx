@@ -122,7 +122,9 @@ export const RegisterPage: React.FC = () => {
               <p className="text-sm text-red-500">{errors.password}</p>
             )}
           </div>
-          <Button type="submit" className="w-full"></Button>
+          <Button type="submit" className="w-full">
+            회원가입
+          </Button>
           {error && <p className="text-sm text-red-500">{error}</p>}
         </form>
       </div>

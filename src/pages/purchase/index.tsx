@@ -18,7 +18,7 @@ import { useAuthStore } from '@/store/auth/useAuthStore';
 import { useCartStore } from '@/store/cart/useCartStore';
 import { useToastStore } from '@/store/toast/useToastStore';
 
-interface FormData {
+export interface FormData {
   name: string;
   address: string;
   phone: string;
@@ -26,7 +26,7 @@ interface FormData {
   payment: string;
 }
 
-interface FormErrors {
+export interface FormErrors {
   phone: string;
 }
 

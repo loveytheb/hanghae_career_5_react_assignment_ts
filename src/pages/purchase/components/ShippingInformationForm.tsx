@@ -6,7 +6,8 @@ import { AddressTableRow } from '@/pages/purchase/components/AddressTableRow';
 import { NameTableRow } from '@/pages/purchase/components/NameTableRow';
 import { PhoneTableRow } from '@/pages/purchase/components/PhoneTableRow';
 import { RequestsTableRow } from '@/pages/purchase/components/RequestsTableRow';
-import { FormData, FormErrors } from '..';
+import { FormData, FormErrors } from '../index';
+import { useCallback } from 'react';
 
 interface PhoneTableRowProps {
   formData: FormData;
@@ -21,6 +22,13 @@ export const ShippingInformationForm = ({
   onChange,
   errors,
 }: PhoneTableRowProps) => {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      onChange(e);
+    },
+    [onChange]
+  );
+
   return (
     <Card className="mt-6">
       <CardHeader>
@@ -32,10 +40,13 @@ export const ShippingInformationForm = ({
       <CardContent>
         <Table>
           <TableBody>
-            <NameTableRow value={formData.name} onChange={onChange} />
-            <AddressTableRow value={formData.address} onChange={onChange} />
-            <PhoneTableRow value={formData.phone} onChange={onChange} />
-            <RequestsTableRow value={formData.requests} onChange={onChange} />
+            <NameTableRow value={formData.name} onChange={handleChange} />
+            <AddressTableRow value={formData.address} onChange={handleChange} />
+            <PhoneTableRow value={formData.phone} onChange={handleChange} />
+            <RequestsTableRow
+              value={formData.requests}
+              onChange={handleChange}
+            />
           </TableBody>
         </Table>
       </CardContent>
